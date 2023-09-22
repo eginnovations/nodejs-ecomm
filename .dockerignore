@@ -1,0 +1,14 @@
+eGNodeMonitor/
+node_modules/
+log/
+logs/
+*.git
+*.md
+*.cache
+*.har
+*.jmx
+*.log
+*.yaml
+Dockerfile
+screenshot.png
+package-lock.json

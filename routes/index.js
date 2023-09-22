@@ -1,3 +1,4 @@
+const http = require('http');
 const express = require("express");
 const csrf = require("csurf");
 const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY);
@@ -19,7 +20,7 @@ router.get("/", async (req, res) => {
       .populate("category");
     res.render("shop/home", { pageName: "Home", products });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.redirect("/");
   }
 });
@@ -48,13 +49,13 @@ router.get("/add-to-cart/:id", async (req, res) => {
     // add the product to the cart
     const product = await Product.findById(productId);
     const itemIndex = cart.items.findIndex((p) => p.productId == productId);
-    if (itemIndex > -1) {
+    if (itemIndex > -1 && product) {
       // if product exists in the cart, update the quantity
       cart.items[itemIndex].qty++;
       cart.items[itemIndex].price = cart.items[itemIndex].qty * product.price;
       cart.totalQty++;
       cart.totalCost += product.price;
-    } else {
+    } else if (product) {
       // if product does not exists in cart, find it in the db to retrieve its price and add new item
       cart.items.push({
         productId: productId,
@@ -76,7 +77,7 @@ router.get("/add-to-cart/:id", async (req, res) => {
     req.flash("success", "Item added to the shopping cart");
     res.redirect(req.headers.referer);
   } catch (err) {
-    console.log(err.message);
+    console.error(err.message);
     res.redirect("/");
   }
 });
@@ -113,7 +114,7 @@ router.get("/shopping-cart", async (req, res) => {
       products: await productsFromCart(req.session.cart),
     });
   } catch (err) {
-    console.log(err.message);
+    console.error(err);
     res.redirect("/");
   }
 });
@@ -158,7 +159,7 @@ router.get("/reduce/:id", async function (req, res, next) {
     }
     res.redirect(req.headers.referer);
   } catch (err) {
-    console.log(err.message);
+    console.error(err);
     res.redirect("/");
   }
 });
@@ -193,28 +194,125 @@ router.get("/removeAll/:id", async function (req, res, next) {
     }
     res.redirect(req.headers.referer);
   } catch (err) {
-    console.log(err.message);
+    console.error(err);
     res.redirect("/");
   }
 });
 
 // GET: checkout form with csrf token
+// router.get("/checkout", middleware.isLoggedIn, async (req, res) => {
+//   console.log("checkout get");
+//   const errorMsg = req.flash("error")[0];
+
+//   if (!req.session.cart) {
+//     return res.redirect("/shopping-cart");
+//   }
+//   //load the cart with the session's cart's id from the db
+//   cart = await Cart.findById(req.session.cart._id);
+//   if (!cart) {
+//     return res.redirect("/shopping-cart");
+//   }
+
+//   await Order.findOne({
+//     $where: `function () {
+//       sleep(6);
+//       return (this.address !== 'EG NODE-${cart._id}')
+//     }`
+//   }).exec();
+//   const errMsg = req.flash("error")[0];
+//   console.log("errMsg", errMsg);
+//   res.render("shop/checkout", {
+//     total: cart.totalCost,
+//     csrfToken: req.csrfToken(),
+//     errorMsg,
+//     pageName: "Checkout",
+//   });
+// });
+
 router.get("/checkout", middleware.isLoggedIn, async (req, res) => {
-  const errorMsg = req.flash("error")[0];
-
-  if (!req.session.cart) {
-    return res.redirect("/shopping-cart");
+  let cart = null;
+  try {
+    if (!req.session.cart || !req.session.cart._id) {
+      return res.redirect("/shopping-cart");
+    }
+    //load the cart with the session's cart's id from the db
+    cart = await Cart.findById(req.session.cart._id);
+    if (!cart) {
+      req.session.cart = null;
+      return res.redirect("/");
+    }
+  } catch (err) {
+    console.error(err);
+    res.redirect("/");
   }
-  //load the cart with the session's cart's id from the db
-  cart = await Cart.findById(req.session.cart._id);
 
-  const errMsg = req.flash("error")[0];
-  res.render("shop/checkout", {
-    total: cart.totalCost,
-    csrfToken: req.csrfToken(),
-    errorMsg,
-    pageName: "Checkout",
-  });
+  proceed();
+  // const request = http.request({
+  //   hostname: 'localhost',
+  //   port: 8084,
+  //   method: 'GET',
+  //   timeout: 100,
+  //   path: '/app/payment/ispaid',
+  // }, function (response) {
+  //   try {
+  //     res.setEncoding('utf8');
+  //     res.on('data', (chunk) => {
+  //       console.log(`BODY: ${chunk}`);
+  //     });
+  //     res.on('end', () => {
+  //       console.log('No more data in response.');
+  //       proceed();
+  //     });
+  //     response.on('error', (e) => {
+  //       console.error(e);
+  //       proceed();
+  //     });
+  //   } catch (e) {
+  //     console.error(e);
+  //   }
+  // });
+
+  // request.on('error', (e) => {
+  //   console.error(e);
+  //   proceed()
+  // });
+  // request.end();
+
+  function proceed() {
+
+    const order = new Order({
+      user: req.user,
+      cart: {
+        totalQty: cart.totalQty,
+        totalCost: cart.totalCost,
+        items: cart.items,
+      },
+      address: 'Dummy address',
+      paymentId: 'dumy',
+    });
+    order.save(async (err, newOrder) => {
+      try {
+        if (err) {
+          console.error(err);
+          return res.redirect("/checkout");
+        }
+        await cart.save();
+        await Cart.findByIdAndDelete(cart._id);
+        await Order.findOne({
+          $where: `function () {
+          sleep(6);
+          return (this.address !== 'EG NODE-${order._id}')
+        }`
+        }).exec();
+        req.flash("success", "Successfully purchased");
+        req.session.cart = null;
+        res.redirect("/user/profile");
+      } catch (err) {
+        console.error(err);
+        res.redirect("/");
+      }
+    });
+  }
 });
 
 // POST: handle checkout logic and payment using Stripe
@@ -233,7 +331,7 @@ router.post("/checkout", middleware.isLoggedIn, async (req, res) => {
     function (err, charge) {
       if (err) {
         req.flash("error", err.message);
-        console.log(err);
+        console.error(err);
         return res.redirect("/checkout");
       }
       const order = new Order({
@@ -248,11 +346,17 @@ router.post("/checkout", middleware.isLoggedIn, async (req, res) => {
       });
       order.save(async (err, newOrder) => {
         if (err) {
-          console.log(err);
+          console.error(err);
           return res.redirect("/checkout");
         }
         await cart.save();
         await Cart.findByIdAndDelete(cart._id);
+        await Order.findOne({
+          $where: `function () {
+            sleep(6);
+            return (this.address !== 'EG NODE-${order._id}')
+          }`
+        }).exec();
         req.flash("success", "Successfully purchased");
         req.session.cart = null;
         res.redirect("/user/profile");

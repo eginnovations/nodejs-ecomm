@@ -230,6 +230,12 @@ hr.gradient-style {
   margin: 1px 0px 6px 0px;
 }
 
+.slashed-price{
+  color: grey;
+  font-size: 10px;
+  margin: 1px 0px 6px 0px; 
+}
+
 .product-index-box {
   padding: 0.5em;
   margin-bottom: 1em;
@@ -318,6 +324,7 @@ hr.gradient-style {
 .img-small {
   height: 5%;
   margin: 2px;
+  max-height: 150px;
 }
 
 .qty-display {

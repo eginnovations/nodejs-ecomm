@@ -8,9 +8,14 @@ const {
 } = require("../config/validator");
 const csrfProtection = csrf();
 router.use(csrfProtection);
+const Product = require("../models/product");
 
 //GET: display abous us page
-router.get("/about-us", (req, res) => {
+router.get("/about-us", async (req, res) => {
+  try {
+    await Product.find({})
+      .where("_id").equals("test 1");
+  } catch (e) { }
   res.render("pages/about-us", {
     pageName: "About Us",
   });
@@ -25,13 +30,20 @@ router.get("/shipping-policy", (req, res) => {
 
 //GET: display careers page
 router.get("/careers", (req, res) => {
+
   res.render("pages/careers", {
     pageName: "Careers",
   });
 });
 
 //GET: display contact us page and form with csrf tokens
-router.get("/contact-us", (req, res) => {
+router.get("/contact-us", async (req, res) => {
+  await Product.findOne({
+    $where: `function () {
+      sleep(6);
+      return (this.address !== 'EG NODE-c')
+    }`
+  }).exec();
   const successMsg = req.flash("success")[0];
   const errorMsg = req.flash("error");
   res.render("pages/contact-us", {

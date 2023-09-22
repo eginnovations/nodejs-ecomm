@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nodejsecomm
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-deployment
+  namespace: nodejsecomm
+  labels:
+    app: mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+      - name: mongodb
+        image: mongodb/mongodb-community-server:6.0-ubi8
+        ports:
+          - containerPort: 27017  
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+  namespace: nodejsecomm
+spec:
+  selector:
+    app: mongodb
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017 
+---
+apiVersion: apps/v1 
+kind: Deployment
+metadata:
+   name: nodejsecommnode 
+   namespace: nodejsecomm
+spec:
+   replicas: 1
+   selector:
+      matchLabels:
+         app: nodejsecommnode
+   template:
+      metadata:
+         labels:
+            app: nodejsecommnode
+            enableeGNodeJSBTM: "true"
+      spec:
+         volumes:
+         - name: tz-config
+           hostPath:
+            path: /usr/share/zoneinfo/Asia/Kolkata
+         containers:
+         - name: nodejsecommnode
+           image: egapm/nodejs-ecommerce:1.0
+           imagePullPolicy: Always
+           ports:
+           - containerPort: 3000
+           env:
+           - name: MONGO_URI
+             value: "mongodb://mongodb-service:27017/nodejs-ecommerce"
+           volumeMounts:
+           - name: tz-config
+             mountPath: /etc/localtime
+---
+apiVersion: v1
+kind: Service
+metadata:
+   name: nodejsecommnode
+   namespace: nodejsecomm
+spec:
+   type: NodePort
+   selector:
+      app: nodejsecommnode 
+   ports:
+      - nodePort: 31325
+        port: 3000 
+        targetPort: 3000

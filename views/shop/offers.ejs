@@ -1,0 +1,111 @@
+<%- include ../partials/header %> <%- include ../partials/categories-navbar %>
+
+    <div class="container">
+
+      <!--Slides-->
+      <div class="carousel-inner" id="products-offers" role="listbox">
+        <!--First slide-->
+        <div class="carousel-item active">
+
+          <div class="row" id="dataContainer">
+
+          </div>
+          <button onclick="specialOffersOpen()"
+            class="iframe-specialOffers btn btn-block btn-secondary mt-3 mb-3 button-style"> SpecialOffers
+          </button><button onclick="closeIframe()" class="btn btn-block btn-secondary">Close special Offers</button>
+          <div id="iframeDisplay"></div>
+          <style>
+            .iframeDisplay {
+              position: relative;
+              width: 100%;
+              overflow: hidden;
+              padding-top: 56.25%;
+              /* 16:9 Aspect Ratio */
+            }
+
+            .responsive-iframe {
+              position: absolute;
+              top: 20px;
+              left: 0;
+              bottom: 0;
+              right: 0;
+              z-index: 1000;
+            }
+          </style>
+        </div>
+
+      </div>
+
+      <script>
+        function specialOffersOpen() {
+          document.getElementById("iframeDisplay").innerHTML = `<iframe class="responsive-iframe" src="/specialOffers" frameborder="3" width="${window.innerWidth * 0.8}" height="${window.innerHeight * 0.7}" style="background-color: #fff"></iframe>`
+        }
+
+        function closeIframe() {
+          document.getElementById("iframeDisplay").innerHTML = "<h3>Click to view Special offers</h3>"
+        }
+
+        $.ajax({
+          url: '/offers/getDetails',
+          type: 'GET',
+          dataType: 'json',
+          success: setData,
+          error: function (err) {
+            console.log('error', err);
+          }
+        });
+
+        function setData(data) {
+          const container = document.getElementById('dataContainer');
+          container.innerHTML = '';
+          if (!data || !data.length) return;
+
+          let html = '';
+          data.forEach(product => {
+            html += `
+        <div class="col-md-4 product-index-box">
+          <div class="single-product d-flex flex-column h-100">
+            <a
+              class="title-link"
+              href="/products/${product.category.slug}/${product._id}"
+            >
+              <img
+                src="${product.imagePath}"
+                alt="Bag"
+                class="img-fluid"
+            /></a>
+            <div class="product-info">
+              <a
+                class="title-link"
+                href="/products/${product.category.slug}/${product._id}"
+              >
+                <h6 class="mt-2 mb-2">${product.title}</h6></a
+              >
+              <div class="price">$${product.price}<s class="slashed-price">$${product.price + Math.floor(Math.random() * 30) + 10}</s></div>
+            </div>`;
+
+            if (product.available) {
+              html += `<a
+                href="/add-to-cart/${product._id}"
+                class="btn btn-block btn-secondary button-style mt-auto mb-2"
+              >
+                Add to Shopping Cart
+              </a>`;
+            } else {
+              html += `<a
+                href="#"
+                class="btn btn-block btn-danger button-style-danger mt-2 mb-2"
+              >
+                Sold out
+              </a>`
+            }
+            html += `</div>
+              </div>`;
+          });
+
+          container.innerHTML = html;
+        }
+      </script>
+
+
+      <%- include ../partials/footer %>

@@ -14,13 +14,14 @@ const {
   validateSignin,
 } = require("../config/validator");
 const csrfProtection = csrf();
-router.use(csrfProtection);
+// router.use(csrfProtection);
 
 // GET: display the signup form with csrf token
 router.get("/signup", middleware.isNotLoggedIn, (req, res) => {
   var errorMsg = req.flash("error")[0];
   res.render("user/signup", {
-    csrfToken: req.csrfToken(),
+    //  csrfToken: req.csrfToken(),
+    csrfToken: '4',
     errorMsg,
     pageName: "Sign Up",
   });
@@ -66,7 +67,8 @@ router.post(
 router.get("/signin", middleware.isNotLoggedIn, async (req, res) => {
   var errorMsg = req.flash("error")[0];
   res.render("user/signin", {
-    csrfToken: req.csrfToken(),
+    // csrfToken: req.csrfToken(),
+    csrfToken: '4',
     errorMsg,
     pageName: "Sign In",
   });
